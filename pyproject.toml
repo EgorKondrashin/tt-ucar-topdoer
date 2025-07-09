@@ -9,3 +9,112 @@ dependencies = [
     "sqlalchemy>=2.0.41",
     "uvicorn>=0.35.0",
 ]
+
+[tool.mypy]
+python_version = 3.13
+plugins = [
+#  "pydantic.mypy",
+#  "sqlalchemy.ext.mypy.plugin",
+]
+follow_imports = "silent"
+warn_redundant_casts = true
+warn_unused_ignores = true
+disallow_any_generics = true
+check_untyped_defs = true
+no_implicit_reexport = true
+disallow_untyped_defs = true
+enable_incomplete_feature = ['NewGenericSyntax']
+
+ignore_missing_imports = true
+disallow_incomplete_defs = true
+strict_optional = true
+exclude = [
+  'generated/.+\.py$',
+]
+
+[tool.ruff]
+target-version = "py313"
+line-length = 120
+exclude = [
+  ".venv",
+  "alembic_migrations/versions/"
+]
+lint.ignore = [
+  "ANN401", # Dynamically typed expressions (typing.Any) are disallowed
+  "PLR0913", # Too many arguments to function call
+  "RUF001", # Docstring contains ambiguous chars
+  "RUF002", # Docstring contains ambiguous chars
+  "RUF003", # Docstring contains ambiguous chars
+  "S101",   # Use assert
+  "N818",
+]
+lint.flake8-tidy-imports.ban-relative-imports = "all"
+lint.mccabe.max-complexity = 20
+lint.select = [
+  "F", # Pyflakes
+  "C90", # mccabe
+  "I", # isort
+  "N", # pep8-naming
+  # "D", # pydocstyle
+  "UP", # pyupgrade
+  "YTT", # flake8-2020
+  "ANN", # flake8-annotations
+  "ASYNC", # flake8-async
+  "S", # flake8-bandit
+  "BLE", # flake8-blind-except
+  # "FBT", # flake8-boolean-trap
+  "B", # flake8-bugbear
+  "A", # flake8-builtins
+  #  "COM", # flake8-commas
+  # "CPY", # flake8-copyright
+  "C4", # flake8-comprehensions
+  # "DTZ", # flake8-datetimez
+  "T10", # flake8-debugger
+  # "DJ", # flake8-django
+  "EM", # flake8-errmsg
+  "EXE", # flake8-executable
+  # "ISC", # flake8-implicit-str-concat
+  "ICN", # flake8-import-conventions
+  "G", # flake8-logging-format
+  "INP", # flake8-no-pep420
+  "PIE", # flake8-pie
+  "T20", # flake8-print
+  # "PYI", # flake8-pyi
+  # "PT", # flake8-pytest-style
+  # "Q", # flake8-quotes
+  "RSE", # flake8-raise
+  "RET", # flake8-return
+  "SLF", # flake8-self
+  "SLOT", # flake8-slots
+  "SIM", # flake8-simplify
+  "TID", # flake8-tidy-imports
+  "TCH", # flake8-type-checking
+  "INT", # flake8-gettext
+  "ARG", # flake8-unused-arguments
+  "PTH", # flake8-use-pathlib
+  "TD", # flake8-todos
+  "FIX", # flake8-fixme
+  "ERA", # eradicate
+  # "PD", # pandas-vet
+  "PGH", # pygrep-hooks
+  "PL", # Pylint
+  "TRY", # tryceratops
+  "FLY", # flynt
+  # "NPY", # NumPy-specific rules
+  # "AIR", # Airflow
+  "PERF", # Perflint
+  "FURB", # refurb
+  "LOG", # flake8-logging
+  "RUF", # Ruff-specific rules
+]
+
+[tool.ruff.format]
+quote-style = "single"
+docstring-code-format = true
+skip-magic-trailing-comma = false
+
+[tool.ruff.lint.isort]
+force-sort-within-sections = true
+combine-as-imports = true
+order-by-type = true
+split-on-trailing-comma = true

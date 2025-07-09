@@ -60,8 +60,27 @@ Content-Type: application/json
   "text": "Мне нравится этот продукт!"
 `}
 
+- Responses
+`{
+  "id": 0,
+  "text": "string",
+  "sentiment": "positive",
+  "created_at": "2025-07-09T14:52:14.319Z"
+}`
+
 ### Получить отзывы по тональности
 - GET /reviews?sentiment=positive
+- Responses
+`{
+  "reviews": [
+    {
+      "id": 0,
+      "text": "string",
+      "sentiment": "positive",
+      "created_at": "2025-07-09T14:52:14.326Z"
+    }
+  ]
+}`
 
 ## Интерактивная документация
 - Swagger UI: http://localhost:80/docs

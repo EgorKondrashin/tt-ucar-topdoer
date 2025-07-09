@@ -4,13 +4,14 @@ from datetime import datetime
 from enum import Enum as PyEnum
 from typing import Annotated, Any
 
-from fastapi import Depends, FastAPI, Query
+from fastapi import APIRouter, Depends, FastAPI, Query
 from pydantic import BaseModel
 from sqlalchemy import DateTime, Engine, Enum, Integer, Text, create_engine, select
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, sessionmaker
 from sqlalchemy.sql import func
 from starlette import status
 from starlette.requests import Request
+import uvicorn
 
 SQLALCHEMY_DATABASE_URL = "sqlite:///./reviews.db"
 POSITIVE_WORDS = ['хорош', 'люблю']
@@ -191,18 +192,6 @@ class ReviewService:
         return SentimentTypeAPI.neutral
 
 
-@asynccontextmanager
-async def lifespan(
-    app: FastAPI,  # noqa: ARG001
-) -> AsyncGenerator[dict[str, Any]]:
-    with engine_provide(SQLALCHEMY_DATABASE_URL) as engine:
-        BaseORM.metadata.create_all(bind=engine)
-        yield {'engine': engine}
-
-
-app = FastAPI(lifespan=lifespan)
-
-
 def engine_depend(
     request: Request,
 ) -> Engine:
@@ -235,8 +224,14 @@ def review_service_depend(
     return ReviewService(review_repository)
 
 
-@app.post(
-    "/reviews",
+router_reviews = APIRouter(
+    prefix='/reviews',
+    tags=['Reviews'],
+)
+
+
+@router_reviews.post(
+    "",
     status_code=status.HTTP_201_CREATED,
     response_model=ReviewResponseAPI,
 )
@@ -247,8 +242,8 @@ async def create_review(
     return await review_service.add_review(review_in=review_in)
 
 
-@app.get(
-    "/reviews",
+@router_reviews.get(
+    "",
     status_code=status.HTTP_200_OK,
     response_model=ListReviewResponseAPI,
 )
@@ -257,3 +252,19 @@ async def get_reviews(
     sentiment: Annotated[SentimentTypeAPI, Query()],
 ) -> ListReviewResponseAPI:
     return await review_servie.get_by_sentiment(sentiment=sentiment)
+
+
+@asynccontextmanager
+async def lifespan(
+    app: FastAPI,  # noqa: ARG001
+) -> AsyncGenerator[dict[str, Any]]:
+    with engine_provide(SQLALCHEMY_DATABASE_URL) as engine:
+        BaseORM.metadata.create_all(bind=engine)
+        yield {'engine': engine}
+
+
+app = FastAPI(lifespan=lifespan)
+app.include_router(router_reviews)
+
+if __name__ == '__main__':
+    uvicorn.run('main:app', host='localhost', port=80, reload=True)

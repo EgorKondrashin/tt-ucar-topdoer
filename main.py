@@ -17,13 +17,16 @@ POSITIVE_WORDS = ['хорош', 'люблю']
 NEGATIVE_WORDS = ['плохо', 'ненавиж']
 
 
+@contextmanager
 def engine_provide(
     database_url: str,
-) -> Engine:
-    return create_engine(
+) -> Generator[Engine]:
+    engine = create_engine(
         database_url,
         connect_args={"check_same_thread": False},
     )
+    yield engine
+    engine.dispose()
 
 
 @contextmanager
@@ -72,19 +75,6 @@ class ReviewORM(BaseORM):
         DateTime,
         server_default=func.now(),
     )
-
-
-@asynccontextmanager
-async def lifespan(
-    app: FastAPI,  # noqa: ARG001
-) -> AsyncGenerator[dict[str, Any]]:
-    engine = engine_provide(SQLALCHEMY_DATABASE_URL)
-    BaseORM.metadata.create_all(bind=engine)
-    yield {'engine': engine}
-    engine.dispose()
-
-
-app = FastAPI(lifespan=lifespan)
 
 
 class SentimentTypeDTO(str, PyEnum):
@@ -199,6 +189,18 @@ class ReviewService:
         if any(word in text_lower for word in NEGATIVE_WORDS):
             return SentimentTypeAPI.negative
         return SentimentTypeAPI.neutral
+
+
+@asynccontextmanager
+async def lifespan(
+    app: FastAPI,  # noqa: ARG001
+) -> AsyncGenerator[dict[str, Any]]:
+    with engine_provide(SQLALCHEMY_DATABASE_URL) as engine:
+        BaseORM.metadata.create_all(bind=engine)
+        yield {'engine': engine}
+
+
+app = FastAPI(lifespan=lifespan)
 
 
 def engine_depend(

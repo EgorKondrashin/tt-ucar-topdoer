@@ -46,7 +46,7 @@ uv sync
 uvicorn main:app --reload
 ```
 
-API будет доступно по адресу: http://localhost:80
+API будет доступно по адресу: http://localhost:8000
 
 # Документация API
 
@@ -83,7 +83,4 @@ Content-Type: application/json
 }`
 
 ## Интерактивная документация
-- Swagger UI: http://localhost:80/docs
-
-
-
+- Swagger UI: http://localhost:8000/docs

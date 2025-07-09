@@ -1,15 +1,14 @@
-from collections.abc import Generator
-from enum import Enum as PyEnum
-
-from fastapi import FastAPI, Query, Depends
-from pydantic import BaseModel
-from datetime import datetime
-from typing import Annotated, AsyncGenerator, Any
-from sqlalchemy import create_engine, Integer, DateTime, Text, Enum, Engine, select
-from sqlalchemy.orm import sessionmaker, Mapped, mapped_column, Session, DeclarativeBase
-from sqlalchemy.sql import func
+from collections.abc import AsyncGenerator, Generator
 from contextlib import asynccontextmanager, contextmanager
+from datetime import datetime
+from enum import Enum as PyEnum
+from typing import Annotated, Any
 
+from fastapi import Depends, FastAPI, Query
+from pydantic import BaseModel
+from sqlalchemy import DateTime, Engine, Enum, Integer, Text, create_engine, select
+from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, sessionmaker
+from sqlalchemy.sql import func
 from starlette import status
 from starlette.requests import Request
 
@@ -77,7 +76,7 @@ class ReviewORM(BaseORM):
 
 @asynccontextmanager
 async def lifespan(
-    app: FastAPI,
+    app: FastAPI,  # noqa: ARG001
 ) -> AsyncGenerator[dict[str, Any]]:
     engine = engine_provide(SQLALCHEMY_DATABASE_URL)
     BaseORM.metadata.create_all(bind=engine)
@@ -99,10 +98,7 @@ class ReviewCreateDTO(BaseModel):
     sentiment: SentimentTypeDTO
 
 
-class ReviewResponseDTO(
-    BaseModel,
-    from_attributes=True,
-):
+class ReviewResponseDTO(BaseModel):
     id: int
     text: str
     sentiment: SentimentTypeDTO
@@ -128,7 +124,7 @@ class ReviewRepository:
         self._session.add(review)
         self._session.flush()
         self._session.refresh(review)
-        return ReviewResponseDTO.model_validate(review)
+        return ReviewResponseDTO.model_validate(review, from_attributes=True)
 
     async def get_by_sentiment(
         self,
@@ -136,7 +132,7 @@ class ReviewRepository:
     ) -> list[ReviewResponseDTO]:
         stmt = select(ReviewORM).where(ReviewORM.sentiment == sentiment)
         result = self._session.execute(stmt).scalars().all()
-        return [ReviewResponseDTO.model_validate(review) for review in result]
+        return [ReviewResponseDTO.model_validate(review, from_attributes=True) for review in result]
 
 
 class SentimentTypeAPI(str, PyEnum):
@@ -149,10 +145,7 @@ class ReviewCreateAPI(BaseModel):
     text: str
 
 
-class ReviewResponseAPI(
-    BaseModel,
-    from_attributes=True,
-):
+class ReviewResponseAPI(BaseModel):
     id: int
     text: str
     sentiment: SentimentTypeAPI
@@ -203,7 +196,7 @@ class ReviewService:
 
         if any(word in text_lower for word in POSITIVE_WORDS):
             return SentimentTypeAPI.positive
-        elif any(word in text_lower for word in NEGATIVE_WORDS):
+        if any(word in text_lower for word in NEGATIVE_WORDS):
             return SentimentTypeAPI.negative
         return SentimentTypeAPI.neutral
 

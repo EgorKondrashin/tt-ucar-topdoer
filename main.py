@@ -8,7 +8,7 @@ from typing import Annotated, AsyncGenerator, Any
 from sqlalchemy import create_engine, Integer, DateTime, Text, Enum, Engine, select
 from sqlalchemy.orm import sessionmaker, Mapped, mapped_column, Session, DeclarativeBase
 from sqlalchemy.sql import func
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, contextmanager
 
 from starlette import status
 from starlette.requests import Request
@@ -27,24 +27,20 @@ def engine_provide(
     )
 
 
-def engine_depend(
-    request: Request,
-) -> Engine:
-    return request.state.engine
-
-
-def session_factory_depend(
-    engine: Annotated[Engine, Depends(engine_depend)],
-) -> sessionmaker[Session]:
-    return sessionmaker(
+@contextmanager
+def session_factory_provide(
+    engine: Engine,
+) -> Generator[sessionmaker[Session]]:
+    yield sessionmaker(
         autoflush=True,
         bind=engine,
         expire_on_commit=False,
     )
 
 
-def session_depend(
-    session_factory: Annotated[sessionmaker[Session], Depends(session_factory_depend)],
+@contextmanager
+def session_provide(
+    session_factory: sessionmaker[Session],
 ) -> Generator[Session]:
     with session_factory() as session:
         try:
@@ -163,10 +159,14 @@ class ReviewResponseAPI(
     created_at: datetime
 
 
+class ListReviewResponseAPI(BaseModel):
+    reviews: list[ReviewResponseAPI]
+
+
 class ReviewService:
     def __init__(
         self,
-        review_repository: Annotated[ReviewRepository, Depends()],
+        review_repository: ReviewRepository,
     ) -> None:
         self._review_repository = review_repository
 
@@ -186,11 +186,14 @@ class ReviewService:
     async def get_by_sentiment(
         self,
         sentiment: SentimentTypeAPI,
-    ) -> list[ReviewResponseAPI]:
+    ) -> ListReviewResponseAPI:
         reviews = await self._review_repository.get_by_sentiment(
             sentiment=SentimentTypeDTO(sentiment),
         )
-        return [ReviewResponseAPI(**review.model_dump()) for review in reviews]
+        return ListReviewResponseAPI(
+            reviews=[ReviewResponseAPI(**review.model_dump()) for review in reviews]
+        )
+
 
     @staticmethod
     def analyze_sentiment(
@@ -205,6 +208,38 @@ class ReviewService:
         return SentimentTypeAPI.neutral
 
 
+def engine_depend(
+    request: Request,
+) -> Engine:
+    return request.state.engine
+
+
+def session_factory_depend(
+    engine: Annotated[Engine, Depends(engine_depend)]
+) -> Generator[sessionmaker[Session]]:
+    with session_factory_provide(engine) as session_factory:
+        yield session_factory
+
+
+def session_depend(
+    session_factory: Annotated[sessionmaker[Session], Depends(session_factory_depend)],
+) -> Generator[Session]:
+    with session_provide(session_factory) as session:
+        yield session
+
+
+def review_repository_depend(
+    session: Annotated[Session, Depends(session_depend)],
+) -> ReviewRepository:
+    return ReviewRepository(session)
+
+
+def review_service_depend(
+    review_repository: Annotated[ReviewRepository, Depends(review_repository_depend)],
+) -> ReviewService:
+    return ReviewService(review_repository)
+
+
 @app.post(
     "/reviews",
     status_code=status.HTTP_201_CREATED,
@@ -212,7 +247,7 @@ class ReviewService:
 )
 async def create_review(
     review_in: ReviewCreateAPI,
-    review_service: Annotated[ReviewService, Depends()],
+    review_service: Annotated[ReviewService, Depends(review_service_depend)],
 ) -> ReviewResponseAPI:
     return await review_service.add_review(review_in=review_in)
 
@@ -220,10 +255,10 @@ async def create_review(
 @app.get(
     "/reviews",
     status_code=status.HTTP_200_OK,
-    response_model=list[ReviewResponseAPI],
+    response_model=ListReviewResponseAPI,
 )
 async def get_reviews(
-    review_servie: Annotated[ReviewService, Depends()],
+    review_servie: Annotated[ReviewService, Depends(review_service_depend)],
     sentiment: Annotated[SentimentTypeAPI, Query()],
-) -> list[ReviewResponseAPI]:
+) -> ListReviewResponseAPI:
     return await review_servie.get_by_sentiment(sentiment=sentiment)
